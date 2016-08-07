@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/orhtej2/slack-markov/utils"
 )
 
 type WebhookResponse struct {
@@ -25,16 +26,8 @@ func init() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		incomingText := r.PostFormValue("text")
 		if incomingText != "" && r.PostFormValue("user_id") != "" {
-			text := parseText(incomingText)
+			text := utils.ParseText(incomingText)
 			log.Printf("Handling incoming request: %s", text)
-
-			if text != "" {
-				markovChain.Write(text)
-			}
-
-			go func() {
-				markovChain.Save(stateFile)
-			}()
 
 			if rand.Intn(100) <= responseChance || strings.HasPrefix(text, botUsername) {
 				var response WebhookResponse
@@ -47,15 +40,23 @@ func init() {
 					log.Fatal(err)
 				}
 
-				if twitterClient != nil {
-					log.Printf("Tweeting: %s", response.Text)
-					twitterClient.Post(response.Text)
-				}
-
 				time.Sleep(5 * time.Second)
 				w.Write(b)
 			}
 		}
+	})
+	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		var response WebhookResponse
+		response.Username = botUsername
+		response.Text = markovChain.Generate(numWords)
+		log.Printf("Sending response: %s", response.Text)
+
+		b, err := json.Marshal(response)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		w.Write(b)
 	})
 }
 

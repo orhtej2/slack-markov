@@ -14,13 +14,8 @@ import (
 )
 
 var (
-	httpPort       int
-	numWords       int
 	prefixLen      int
 	stateFile      string
-	responseChance int
-	botUsername    string
-
 	markovChain *utils.Chain
 )
 
@@ -31,20 +26,16 @@ func init() {
 func main() {
 	// Parse command-line options
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: ./slack-markov -port=8000\n")
+		fmt.Fprintf(os.Stderr, "usage: ./initialimport -importDir=directory\n")
 		flag.PrintDefaults()
 	}
-
-	flag.IntVar(&httpPort, "port", 8000, "The HTTP port on which to listen")
-	flag.IntVar(&numWords, "words", 100, "Maximum number of words in the output")
 	flag.IntVar(&prefixLen, "prefix", 2, "Prefix length in words")
-	flag.IntVar(&responseChance, "responseChance", 10, "Percent chance to generate a response on each request")
+	var importDir = flag.String("importDir", "", "The directory of a Slack export")
 	flag.StringVar(&stateFile, "stateFile", "state", "File to use for maintaining our markov chain state")
-	flag.StringVar(&botUsername, "botUsername", "markov-bot", "The name of the bot when it speaks")
 
 	flag.Parse()
 
-	if httpPort == 0 {
+	if *importDir == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -52,13 +43,10 @@ func main() {
 	markovChain = utils.NewChain(prefixLen) // Initialize a new Chain.
 
 	// Import into the chain
-	// Rebuild the markov chain from state
-	err := markovChain.Load(stateFile)
+	err := StartImport(importDir)
 	if err != nil {
-		//log.Fatal(err)
-		log.Fatal("Could not load from '%s'. This may be expected.", stateFile)
+		log.Fatal(err)
+	} else { 
+		log.Print("All done!")
 	}
-
-	// Start the webserver
-	StartServer(httpPort)
 }
